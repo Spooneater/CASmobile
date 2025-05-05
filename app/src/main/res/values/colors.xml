@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="ui_blue">#2196F3</color>
+    <color name="attendance_green">#B2FF96</color>
+    <color name="attendance_red">#FF7D78</color>
+    <color name="ui_header_black">#323A45</color>
+    <color name="login_blue">#ECF1FF</color>
+</resources>
