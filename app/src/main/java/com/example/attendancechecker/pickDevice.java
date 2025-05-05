@@ -3,7 +3,6 @@ package com.example.attendancechecker;
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
-import android.bluetooth.BluetoothManager;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -18,27 +17,24 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.app.ActivityCompat;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 public class pickDevice extends AppCompatActivity {
-    //devices_data[i] : i - id студента в рамках таблицы(1..n); [0]-адрес устройства (string); [1]-название (String);
+
     public static final int WIRED = 123456;
     public static final int NOTWIRED = 654321;
+    //devices_data[i] : i - id студента в рамках таблицы(1..n); [0]-адрес устройства (string); [1]-название (String);
     List<Object[]> devices_data = new ArrayList<Object[]>();
     String student_name;
     long student_id;
-    LinearLayout tableLayoutStud;
+    //Отображение в которое мы закидываем
+    LinearLayout tableLayoutDevice;
 
     BluetoothAdapter bluetoothAdapter;
 
@@ -125,7 +121,7 @@ public class pickDevice extends AppCompatActivity {
                 String deviceHardwareAddress = device.getAddress(); // MAC addres
                 synchronized (this) {
                     devices_data.add(new Object[]{deviceHardwareAddress, deviceName});// s
-                    tableLayoutStud.addView(makeTableInst(devices_data.size()-1 ,deviceHardwareAddress,deviceName,tableLayoutStud.getWidth()));
+                    tableLayoutDevice.addView(makeTableInst(devices_data.size()-1 ,deviceHardwareAddress,deviceName, tableLayoutDevice.getWidth()));
                 }
             }
         }
@@ -193,7 +189,7 @@ public class pickDevice extends AppCompatActivity {
                 tryToWire();
             }
         });
-        tableLayoutStud = findViewById(R.id.tableLayoutDevice);
+        tableLayoutDevice = findViewById(R.id.tableLayoutDevice);
         bluetoothAdapter= BluetoothAdapter.getDefaultAdapter();
 
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {

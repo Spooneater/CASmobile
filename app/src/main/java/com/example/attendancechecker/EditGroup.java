@@ -30,7 +30,7 @@ public class EditGroup extends AppCompatActivity {
     protected Object[][] students_data;
     protected Boolean is_asking_to_confirm = false;
     private int chosen_student_id = -1;
-    //TODO
+    //TODO Получение данных по api будет тут
     protected String getGroupNumber(){
         return "22307place_holder";
     }
@@ -46,6 +46,7 @@ public class EditGroup extends AppCompatActivity {
 
 
     };
+    //Создает и возвращает отображение которое мы добавим в таблицу
     protected LinearLayout makeTableInst(int id, String fio, boolean isWired,long student_id, Integer width){
 
         LinearLayout line = new LinearLayout(this);
@@ -95,6 +96,7 @@ public class EditGroup extends AppCompatActivity {
 
         return line;
     }
+    //Показывает оверлей для подтверждениея выбора студента
 
     protected void showConfirmBox(Integer id){
         is_asking_to_confirm = true;
@@ -108,6 +110,7 @@ public class EditGroup extends AppCompatActivity {
         confirmText.setText(String.format("Вы уверены, что хотите выбрать устройство для студента %s?", students_data[id][1]));
 
     };
+    //Скрывает оверлей для подтверждениея выбора студента
     protected void hideConfirmBox(){
         is_asking_to_confirm = false;
         textBox.setVisibility(View.INVISIBLE);
@@ -120,7 +123,7 @@ public class EditGroup extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
+        //При вызове "назад" мы сначала скроем оверлей, если он открыт. Иначе переходим назад
         OnBackPressedCallback callback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -141,7 +144,7 @@ public class EditGroup extends AppCompatActivity {
     public boolean checkIfBluetoothed(){
         return true;
     }
-
+    //Отрисовка экрана
     protected void loadStuff(){
         setContentView(R.layout.activity_edit_group);
         textBox = findViewById(R.id.textBox);
@@ -182,8 +185,10 @@ public class EditGroup extends AppCompatActivity {
             }
         });
         hideConfirmBox();
+        //Собираем данные о студентах
         fillStudentsData();
         LinearLayout tableLayoutStud = findViewById(R.id.tableLayoutStud);
+        //Ждем пока всё отрисуется, чтобы можно было вытащить размер.
         tableLayoutStud.post(new Runnable() {
             @Override
             public void run() {
