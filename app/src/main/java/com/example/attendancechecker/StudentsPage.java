@@ -1,25 +1,19 @@
 package com.example.attendancechecker;
 
 import android.content.Intent;
-import android.graphics.drawable.Icon;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
 
-import androidx.activity.EdgeToEdge;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
-public class EditGroup extends AppCompatActivity {
+public class StudentsPage extends AppCompatActivity {
     public static final int WIRED = 123456;
     public static final int NOTWIRED = 654321;
     private View editStudOverlay;
@@ -176,7 +170,7 @@ public class EditGroup extends AppCompatActivity {
                 }
                 else{
                     errorMessageConf.setText("");
-                    Intent intent = new Intent(EditGroup.this,pickDevice.class);
+                    Intent intent = new Intent(StudentsPage.this, AddressesPage.class);
                     intent.putExtra("student_id",(long)students_data[chosen_student_id][0]);
                     intent.putExtra("student_name",(String)students_data[chosen_student_id][1]);
                     startActivity(intent);

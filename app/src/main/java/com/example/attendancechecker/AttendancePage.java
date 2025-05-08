@@ -1,66 +1,31 @@
 package com.example.attendancechecker;
 
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.Button;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
-import androidx.activity.EdgeToEdge;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
-import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
 
-public class MainActivity extends AppCompatActivity {
-    private TextView error_message_login;
-    private Button login_button,group_btn,check_attendance;
+public class AttendancePage extends AppCompatActivity {
+
+    private Button group_btn,check_attendance;
     private LinearLayout table_layout;
-    private EditText name_login_from,editTextTextPassword;
-
-    private Button group_btn_tch,check_attendance_tch;
+    private Button check_attendance_tch;
     private LinearLayout table_layout_tch;
-    private EditText name_login_from_tch,editTextTextPassword_tch;
 
-    //TODO Проверка вошёл ли уже пользователь
-
-    protected boolean isLoggedIn(){
-        return false;
-    }
     //TODO Староста -true препод -false
     protected boolean isStarosta(){
         return true;
     }
-    //TODO Проверка подключения к сети
-    protected boolean noConnection(){
-        return true;
-    }
-    //TODO Проверка правильности данных. и вывод сообщения об ошибке
-    protected boolean checkLogin(String login, String password,TextView error_message_login){
-        if (true){
-            return true;
-        }
-        else{
-            if (noConnection()){
-                error_message_login.setText("Проверьте интернет-соединение");
-            }
-            else{
-                error_message_login.setText("Неверный логин или пароль");
-            }
-            return false;
-        }
-    }
+
+
     //Штука для создания одной строки таблицы посещения
     protected LinearLayout makeTableInst(String id, String fio, String attend, Integer width){
 
@@ -105,14 +70,15 @@ public class MainActivity extends AppCompatActivity {
     }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+
         super.onCreate(savedInstanceState);
-        if (isLoggedIn()) {
-            if (isStarosta()) mainScreenStarost();
-            else mainScreenTeacher();
-        }
-        else{
-            loginScreen();
-        }
+        OnBackPressedCallback callback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+            }};
+        if (isStarosta()) mainScreenStarost();
+        else mainScreenTeacher();
+
     }
 
     //TODO Добавить получение данных о студентишках. В ответ массив и массивов строк где [0]-номер в таблице,[1]-fio, [2]-посещение['+',"-",""]
@@ -147,11 +113,10 @@ public class MainActivity extends AppCompatActivity {
         group_btn.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View V){
-                Intent intent = new Intent(MainActivity.this,EditGroup.class);
+                Intent intent = new Intent(AttendancePage.this, StudentsPage.class);
                 startActivity(intent);
             }
         });
-
     }
     protected void mainScreenTeacher(){
         setContentView(R.layout.activity_main_screen_teacher);
@@ -173,22 +138,5 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-    protected void loginScreen(){
-        setContentView(R.layout.activity_login);
-        error_message_login = findViewById(R.id.error_message_login);
-        login_button = findViewById(R.id.login_button);
-        name_login_from = findViewById(R.id.name_login_from);
-        editTextTextPassword = findViewById(R.id.editTextTextPassword);
-        login_button.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                String login = name_login_from.getText().toString();
-                String password = editTextTextPassword.getText().toString();
-                if (checkLogin(login,password,error_message_login)){
-                    if (isStarosta()) mainScreenStarost();
-                    else mainScreenTeacher();
-                }
-            }
-        });
-    }
+
 }

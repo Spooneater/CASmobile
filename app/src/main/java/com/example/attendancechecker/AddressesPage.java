@@ -25,7 +25,7 @@ import androidx.core.app.ActivityCompat;
 import java.util.ArrayList;
 import java.util.List;
 
-public class pickDevice extends AppCompatActivity {
+public class AddressesPage extends AppCompatActivity {
 
     public static final int WIRED = 123456;
     public static final int NOTWIRED = 654321;

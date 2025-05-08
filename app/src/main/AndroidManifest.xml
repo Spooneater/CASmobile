@@ -3,7 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
         android:usesPermissionFlags="neverForLocation"
         tools:targetApi="31" />
 
@@ -18,13 +19,13 @@
         android:theme="@style/Theme.AttendanceChecker"
         tools:targetApi="31">
         <activity
-            android:name=".pickDevice"
+            android:name=".AddressesPage"
             android:exported="false" />
         <activity
-            android:name=".EditGroup"
+            android:name=".StudentsPage"
             android:exported="false" />
         <activity
-            android:name=".MainActivity"
+            android:name=".AttendancePage"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
