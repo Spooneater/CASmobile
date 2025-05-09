@@ -15,7 +15,7 @@ import androidx.appcompat.content.res.AppCompatResources;
 
 public class StudentsPage extends AppCompatActivity {
     public static final int WIRED = 123456;
-    public static final int NOTWIRED = 654321;
+    UserData userData;
     private View editStudOverlay;
     private View textBox;
     private TextView confirmText,errorMessageConf;
@@ -24,19 +24,16 @@ public class StudentsPage extends AppCompatActivity {
     protected Object[][] students_data;
     protected Boolean is_asking_to_confirm = false;
     private int chosen_student_id = -1;
-    //TODO Получение данных по api будет тут
-    protected String getGroupNumber(){
-        return "22307place_holder";
-    }
-    //TODO Заполнение данных о студентах
+
     protected void fillStudentsData(){
 
         //Magic data
-        int n=3;
+        int n = userData.studentsData.size();
         students_data = new Object[n][3];
-        students_data[0]= new Object[]{(long) 10, "I am first", true};
-        students_data[1]= new Object[]{(long) 20, "I am second", false};
-        students_data[2]= new Object[]{(long) 30, "I am third", true};
+        for (int i = 0; i<n;i++){
+            students_data[i] = new Object[]{userData.studentsData.get(i)[userData.STUDENT_ID],
+                    userData.studentsData.get(i)[userData.FIO],userData.studentsData.get(i)[userData.ADDRESS]!="-"};
+        }
 
 
     };
@@ -118,6 +115,7 @@ public class StudentsPage extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         //При вызове "назад" мы сначала скроем оверлей, если он открыт. Иначе переходим назад
+        userData = LoginPage.userData;
         OnBackPressedCallback callback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -144,7 +142,7 @@ public class StudentsPage extends AppCompatActivity {
         textBox = findViewById(R.id.textBox);
         editStudOverlay = findViewById(R.id.editStudOverlay);
         TextView TextThing = findViewById(R.id.TextThing);
-        TextThing.setText(String.format("Управление группой (%s)", getGroupNumber()));
+        TextThing.setText(String.format("Управление группой (%s)", userData.group_id));
         confirmText = findViewById(R.id.confirmText);
         errorMessageConf = findViewById(R.id.errorMessageConf);
         confirmStudBtn = findViewById(R.id.confirmStudBtn);
@@ -171,7 +169,7 @@ public class StudentsPage extends AppCompatActivity {
                 else{
                     errorMessageConf.setText("");
                     Intent intent = new Intent(StudentsPage.this, AddressesPage.class);
-                    intent.putExtra("student_id",(long)students_data[chosen_student_id][0]);
+                    intent.putExtra("student_id",(int)students_data[chosen_student_id][0]);
                     intent.putExtra("student_name",(String)students_data[chosen_student_id][1]);
                     startActivity(intent);
                     hideConfirmBox();
@@ -188,11 +186,12 @@ public class StudentsPage extends AppCompatActivity {
             public void run() {
                 Integer i =0;
                 for (Object[] inst : students_data) {
-                    tableLayoutStud.addView(makeTableInst(i, (String)inst[1], (boolean) inst[2], (long) inst[0], tableLayoutStud.getWidth()));
+                    tableLayoutStud.addView(makeTableInst(i, (String)inst[1], (boolean) inst[2], (int) inst[0], tableLayoutStud.getWidth()));
                     i = i + 1;
                 } ;
             }
         });
 
     }
+
 }

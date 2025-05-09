@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.net.ConnectivityManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
@@ -23,16 +24,23 @@ import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.app.ActivityCompat;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 
 public class AddressesPage extends AppCompatActivity {
+    public boolean isNetworkConnected() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
 
+        return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnectedOrConnecting();
+    }
     public static final int WIRED = 123456;
     public static final int NOTWIRED = 654321;
+    UserData userData;
     //devices_data[i] : i - id студента в рамках таблицы(1..n); [0]-адрес устройства (string); [1]-название (String);
     List<Object[]> devices_data = new ArrayList<Object[]>();
+    HashSet<String> device_address_set = new HashSet<String>();
     String student_name;
-    long student_id;
+    int student_id;
     //Отображение в которое мы закидываем
     LinearLayout tableLayoutDevice;
 
@@ -98,11 +106,10 @@ public class AddressesPage extends AppCompatActivity {
         });
         return line;
     }
-    private final BroadcastReceiver receiver = new BroadcastReceiver() {
+    private final BroadcastReceiver receiver2 = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
-            Log.i("aaa","bbb");
             if (BluetoothDevice.ACTION_FOUND.equals(action)) {
                 // Discovery has found a device. Get the BluetoothDevice
                 // object and its info from the Intent.
@@ -120,54 +127,46 @@ public class AddressesPage extends AppCompatActivity {
                 }
                 String deviceHardwareAddress = device.getAddress(); // MAC addres
                 synchronized (this) {
-                    devices_data.add(new Object[]{deviceHardwareAddress, deviceName});// s
-                    tableLayoutDevice.addView(makeTableInst(devices_data.size()-1 ,deviceHardwareAddress,deviceName, tableLayoutDevice.getWidth()));
+                    if (device_address_set.add(deviceHardwareAddress)) {
+                        devices_data.add(new Object[]{deviceHardwareAddress, deviceName});// s
+                        tableLayoutDevice.addView(makeTableInst(devices_data.size() - 1, deviceHardwareAddress, deviceName, tableLayoutDevice.getWidth()));
+                    }
                 }
             }
         }
     };
 
-    //TODO
-    protected boolean isConnected(){
-        return true;
-    }
-    //TODO Собственно запрос. return true if получилось
-    private boolean requestWiring()
-    {
-        return (student_id!=-1);
-    }
+
     protected void tryToWire(){
         if (device_id == -1){
             errorMessageDevice.setText("Нажмите на выбранное устройство");
             return;
         }
-        if (!isConnected()){
+        if (!isNetworkConnected()){
             errorMessageDevice.setText("Привязывать устройства можно только при подключении к сети");
             return;
         }
         //TODO Добавить запрос для проверки привязки устройства
-        if ((boolean)devices_data.get(device_id)[2]){
+        if (!userData.requestWiring((String)devices_data.get(device_id)[0],student_id)){
             errorMessageDevice.setText("Этот адрес уже привязан к другому студенту");
             return;
         }
-        //Попытка привязки. индекс в devices_data лежит в device_id подефолту -1
-        if (requestWiring()){
-            setResult(WIRED);
-            finish();
-            return;
-        }
-        errorMessageDevice.setText("UNKNOWN ERROR");
+        LoginPage.userData.updateData();
+        finish();
+        return;
 
     }
     @RequiresApi(api = Build.VERSION_CODES.S)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        userData = LoginPage.userData;
         setContentView(R.layout.activity_pick_device);
         errorMessageDevice = findViewById(R.id.errorMessageDevice);
         Button confirmBtn = findViewById(R.id.confirmDeviceBtn);
         Button returnBtn =  findViewById(R.id.ret_button_dev);
         TextView header = findViewById(R.id.TextThingDevice);
+
         returnBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -179,7 +178,7 @@ public class AddressesPage extends AppCompatActivity {
         //данные с  прошлой страницы
         Intent lastintent = getIntent();
         student_name = lastintent.getStringExtra("student_name");
-        student_id = lastintent.getLongExtra("student_id",-1);
+        student_id = lastintent.getIntExtra("student_id",-1);
         header.setText(String.format("Выберите устройство для \"%s\"", student_name));
         device_id = -1;
 
@@ -195,45 +194,40 @@ public class AddressesPage extends AppCompatActivity {
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.BLUETOOTH_CONNECT},2);
         }
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED)
+            {   ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.BLUETOOTH_SCAN}, 2);
+        }
+
+        IntentFilter intentFilter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        registerReceiver(receiver2,intentFilter);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.BLUETOOTH_SCAN},2);
-        }
-
-        if (!bluetoothAdapter.getBondedDevices().isEmpty()) {
-            // There are paired devices. Get the name and address of each paired device.
-            for (BluetoothDevice device : bluetoothAdapter.getBondedDevices()) {
-                String deviceName = device.getName();
-
-                String deviceHardwareAddress = device.getAddress(); // MAC address
+                // TODO: Consider calling
+                //    ActivityCompat#requestPermissions
+                // here to request the missing permissions, and then overriding
+                //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+                //                                          int[] grantResults)
+                // to handle the case where the user grants the permission. See the documentation
+                // for ActivityCompat#requestPermissions for more details.
+                return;
             }
+        bluetoothAdapter.startDiscovery();
         }
 
 
 
-    }
+
+
     @Override
     protected void onStart() {
         super.onStart();
 
-        IntentFilter intentFilter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        registerReceiver(receiver,intentFilter);
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
-        bluetoothAdapter.startDiscovery();
 
     }
     @Override
     protected void onDestroy() {
+        unregisterReceiver(receiver2);
         super.onDestroy();
         // Don't forget to unregister the ACTION_FOUND receiver.
-        unregisterReceiver(receiver);
+
     }
 }

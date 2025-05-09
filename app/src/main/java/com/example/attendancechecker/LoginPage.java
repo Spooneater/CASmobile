@@ -1,5 +1,8 @@
 package com.example.attendancechecker;
 
+import android.content.Context;
+import android.content.Intent;
+import android.net.ConnectivityManager;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.Button;
@@ -13,29 +16,29 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
 public class LoginPage extends AppCompatActivity {
+    public static UserData userData;
     private TextView error_message_login;
     private Button login_button;
     private EditText name_login_from,editTextTextPassword;
-    //TODO Проверка вошёл ли уже пользователь
-    protected boolean isLoggedIn(){
-        return false;
+
+    public boolean isNetworkConnected() {
+        ConnectivityManager cm = (ConnectivityManager) getSystemService(CONNECTIVITY_SERVICE);
+
+        return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnectedOrConnecting();
     }
-    //TODO Проверка подключения к сети
-    protected boolean noConnection(){
-        return true;
-    }
+
     //TODO Проверка правильности данных. и вывод сообщения об ошибке
     protected boolean checkLogin(String login, String password,TextView error_message_login){
-        if (true){
+        if (! isNetworkConnected()){
+            error_message_login.setText("Проверьте интернет-соединение");
+            return false;
+        }
+        if (userData.checkLogin()){
             return true;
         }
         else{
-            if (noConnection()){
-                error_message_login.setText("Проверьте интернет-соединение");
-            }
-            else{
+
                 error_message_login.setText("Неверный логин или пароль");
-            }
             return false;
         }
     }
@@ -43,6 +46,7 @@ public class LoginPage extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
+
         error_message_login = findViewById(R.id.error_message_login);
         login_button = findViewById(R.id.login_button);
         name_login_from = findViewById(R.id.name_login_from);
@@ -52,8 +56,12 @@ public class LoginPage extends AppCompatActivity {
             public void onClick(View v) {
                 String login = name_login_from.getText().toString();
                 String password = editTextTextPassword.getText().toString();
+                userData = new UserData(login,password);
                 if (checkLogin(login,password,error_message_login)){
-
+                    userData.updateData();
+                    Intent intent = new Intent(LoginPage.this, AttendancePage.class);
+                    startActivity(intent);
+                    finish();
                 }
             }
         });
