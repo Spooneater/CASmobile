@@ -11,7 +11,6 @@ import android.content.pm.PackageManager;
 import android.net.ConnectivityManager;
 import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.Button;
@@ -37,17 +36,17 @@ public class AddressesPage extends AppCompatActivity {
     public static final int NOTWIRED = 654321;
     UserData userData;
     //devices_data[i] : i - id студента в рамках таблицы(1..n); [0]-адрес устройства (string); [1]-название (String);
-    List<Object[]> devices_data = new ArrayList<Object[]>();
-    HashSet<String> device_address_set = new HashSet<String>();
-    String student_name;
-    int student_id;
+    List<Object[]> devicesData = new ArrayList<Object[]>();
+    HashSet<String> deviceAddressSet = new HashSet<String>();
+    String studentName;
+    int studentId;
     //Отображение в которое мы закидываем
     LinearLayout tableLayoutDevice;
 
     BluetoothAdapter bluetoothAdapter;
 
     private TextView errorMessageDevice;
-    private int device_id = -1;
+    private int deviceId = -1;
     private LinearLayout highlightedDeviceLine;
     protected LinearLayout makeTableInst(int id,  String adress, String name, Integer width){
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width,width/6);
@@ -96,17 +95,17 @@ public class AddressesPage extends AppCompatActivity {
         line.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (device_id !=-1){
+                if (deviceId !=-1){
                     highlightedDeviceLine.setBackground(AppCompatResources.getDrawable(context,R.drawable.scrol_border));
                 }
-                device_id = id;
+                deviceId = id;
                 highlightedDeviceLine = line;
                 line.setBackground(AppCompatResources.getDrawable(context,R.drawable.border_in_gray));
             }
         });
         return line;
     }
-    private final BroadcastReceiver receiver2 = new BroadcastReceiver() {
+    private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -127,9 +126,9 @@ public class AddressesPage extends AppCompatActivity {
                 }
                 String deviceHardwareAddress = device.getAddress(); // MAC addres
                 synchronized (this) {
-                    if (device_address_set.add(deviceHardwareAddress)) {
-                        devices_data.add(new Object[]{deviceHardwareAddress, deviceName});// s
-                        tableLayoutDevice.addView(makeTableInst(devices_data.size() - 1, deviceHardwareAddress, deviceName, tableLayoutDevice.getWidth()));
+                    if (deviceAddressSet.add(deviceHardwareAddress)) {
+                        devicesData.add(new Object[]{deviceHardwareAddress, deviceName});// s
+                        tableLayoutDevice.addView(makeTableInst(devicesData.size() - 1, deviceHardwareAddress, deviceName, tableLayoutDevice.getWidth()));
                     }
                 }
             }
@@ -138,7 +137,7 @@ public class AddressesPage extends AppCompatActivity {
 
 
     protected void tryToWire(){
-        if (device_id == -1){
+        if (deviceId == -1){
             errorMessageDevice.setText("Нажмите на выбранное устройство");
             return;
         }
@@ -147,13 +146,12 @@ public class AddressesPage extends AppCompatActivity {
             return;
         }
         //TODO Добавить запрос для проверки привязки устройства
-        if (userData.requestWiring((String)devices_data.get(device_id)[0],student_id) == 1){
+        if (userData.requestWiring((String) devicesData.get(deviceId)[0], studentId) == 1){
             errorMessageDevice.setText("Этот адрес уже привязан к другому студенту");
             return;
         }
         LoginPage.userData.updateData();
         finish();
-        return;
 
     }
     @RequiresApi(api = Build.VERSION_CODES.S)
@@ -177,10 +175,10 @@ public class AddressesPage extends AppCompatActivity {
         });
         //данные с  прошлой страницы
         Intent lastintent = getIntent();
-        student_name = lastintent.getStringExtra("student_name");
-        student_id = lastintent.getIntExtra("student_id",-1);
-        header.setText(String.format("Выберите устройство для \"%s\"", student_name));
-        device_id = -1;
+        studentName = lastintent.getStringExtra("student_name");
+        studentId = lastintent.getIntExtra("student_id",-1);
+        header.setText(String.format("Выберите устройство для \"%s\"", studentName));
+        deviceId = -1;
 
         confirmBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -199,7 +197,7 @@ public class AddressesPage extends AppCompatActivity {
         }
 
         IntentFilter intentFilter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
-        registerReceiver(receiver2,intentFilter);
+        registerReceiver(receiver,intentFilter);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
                 // TODO: Consider calling
                 //    ActivityCompat#requestPermissions
@@ -212,20 +210,9 @@ public class AddressesPage extends AppCompatActivity {
             }
         bluetoothAdapter.startDiscovery();
         }
-
-
-
-
-
-    @Override
-    protected void onStart() {
-        super.onStart();
-
-
-    }
     @Override
     protected void onDestroy() {
-        unregisterReceiver(receiver2);
+        unregisterReceiver(receiver);
         super.onDestroy();
         // Don't forget to unregister the ACTION_FOUND receiver.
 

@@ -28,14 +28,11 @@ public class AttendancePage extends AppCompatActivity {
     public static final String STOPWAITING = "WAITING_!@#$";
     private Button groupBtn, checkAttendanceBtn;
     private LinearLayout tableLayout;
-    private Button checkAttendanceTch;
-    private LinearLayout tableLayoutTch;
     boolean canClick;
     public UserData userData;
     public LessonsData lessonsData;
     public AttendanceData attendanceData;
     private BluetoothReader bluetoothReader;
-    private Context context;
     private boolean isMessagePresent;
     //message box
     private View textBox;
@@ -98,7 +95,6 @@ public class AttendancePage extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
-        context = this;
         canClick = true;
         lessonsData = new LessonsData(userData);
         //Получаем вытащенные данные
@@ -119,10 +115,10 @@ public class AttendancePage extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             registerReceiver(receiver,intentFilter,RECEIVER_EXPORTED);
         }
-        loadPage();
+        checkDataUpdateAndShow();
 
     }
-    protected void loadPage(){
+    protected void checkDataUpdateAndShow(){
         LessonsData tempLessonData = new LessonsData(userData);
         if ((!tempLessonData.lessons_ids.equals(lessonsData.lessons_ids))||(userData.isChanged())){
             lessonsData = tempLessonData;
@@ -130,33 +126,58 @@ public class AttendancePage extends AppCompatActivity {
             attendanceData = new AttendanceData(lessonsData,userData);}
 
         //Пока считаем что старосте старостовский экран, остальным учительский
-        if (Objects.equals(userData.role, "s")) mainScreenStarost();
-        else mainScreenTeacher();
+        showPage();
     }
 
     // В ответ массив и массивов строк где [0]-номер в таблице,[1]-fio, [2]-посещение['+',"-",""]
     protected List<String[]> parseData(){
-        List<String[]> students_Attendance = new ArrayList<>();
+        List<String[]> studentsAttendance = new ArrayList<>();
         int ind = 1;
         for (Object[] stud: attendanceData.attendanceData){
-            students_Attendance.add(new String[]{String.valueOf(ind),(String)stud[1],(String) stud[3]});
+            studentsAttendance.add(new String[]{String.valueOf(ind),(String)stud[1],(String) stud[3]});
             ind++;
         }
-        return  students_Attendance;
+        return  studentsAttendance;
     }
-    protected void mainScreenStarost(){
-        setContentView(R.layout.activity_main_screen_startosta);
-        checkAttendanceBtn = findViewById(R.id.check_attendance);
-        tableLayout = findViewById(R.id.table_layout);
-        groupBtn = findViewById(R.id.Group_btn);
-        ScrollView scrollable_view = findViewById(R.id.scrollView2);
-        TextView lesson_name = findViewById(R.id.lesson_name);
-        TextView time_view = findViewById(R.id.time_header);
-        overlay = findViewById(R.id.attendanceStarostOverlay);
-        textBox = findViewById(R.id.textBoxStarost);
-        messageView = findViewById(R.id.confirmTextStarost);
-        okButton = findViewById(R.id.confirmStarost);
-        messageBoxHandler(View.INVISIBLE,"");
+    protected void showPage(){
+        ScrollView scrollable_view;
+        TextView lessonName;
+        TextView time_view;
+        if (userData.role.equals("s")){
+            setContentView(R.layout.activity_main_screen_startosta);
+            checkAttendanceBtn = findViewById(R.id.check_attendance);
+            tableLayout = findViewById(R.id.table_layout);
+            groupBtn = findViewById(R.id.Group_btn);
+            scrollable_view = findViewById(R.id.scrollView2);
+            lessonName = findViewById(R.id.lesson_name);
+            time_view = findViewById(R.id.time_header);
+            overlay = findViewById(R.id.attendanceStarostOverlay);
+            textBox = findViewById(R.id.textBoxStarost);
+            messageView = findViewById(R.id.confirmTextStarost);
+            okButton = findViewById(R.id.confirmStarost);
+            messageBoxHandler(View.INVISIBLE,"");
+            groupBtn.setOnClickListener(new View.OnClickListener(){
+                @Override
+                public void onClick(View V){
+
+                    Intent intent = new Intent(AttendancePage.this, StudentsPage.class);
+                    startActivity(intent);
+                }
+            });
+        }
+        else{
+            setContentView(R.layout.activity_main_screen_teacher);
+            checkAttendanceBtn = findViewById(R.id.check_attendance_tch);
+            tableLayout = findViewById(R.id.table_layout_tch);
+            scrollable_view = findViewById(R.id.scrollView2_tch);
+            lessonName = findViewById(R.id.lesson_name_tch);
+            time_view = findViewById(R.id.time_header_tch);
+            overlay = findViewById(R.id.attendanceTchOverlay);
+            textBox = findViewById(R.id.textBoxTch);
+            messageView = findViewById(R.id.confirmTextTch);
+            okButton = findViewById(R.id.confirmTch);
+            messageBoxHandler(View.INVISIBLE,"");
+        }
         okButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View V){
@@ -165,10 +186,10 @@ public class AttendancePage extends AppCompatActivity {
             }
         });
         if (!lessonsData.lessonsData.isEmpty()){
-            lesson_name.setText((String)lessonsData.lessonsData.get(0)[3]);
+            lessonName.setText((String)lessonsData.lessonsData.get(0)[3]);
             time_view.setText(lessonsData.getFormatedTime(0));}
         else{
-            lesson_name.setText("Сейчас не проходит занятие");
+            lessonName.setText("Сейчас не проходит занятие");
             time_view.setText("00:00\n00:00");
         }
         tableLayout.post(new Runnable() {
@@ -192,63 +213,10 @@ public class AttendancePage extends AppCompatActivity {
                 }
             }
         });
-        groupBtn.setOnClickListener(new View.OnClickListener(){
-            @Override
-            public void onClick(View V){
 
-                Intent intent = new Intent(AttendancePage.this, StudentsPage.class);
-                startActivity(intent);
-            }
-        });
     }
-    protected void mainScreenTeacher(){
-        setContentView(R.layout.activity_main_screen_teacher);
 
-        checkAttendanceTch = findViewById(R.id.check_attendance_tch);
-        tableLayoutTch = findViewById(R.id.table_layout_tch);
-        ScrollView scrollable_view_tch = findViewById(R.id.scrollView2_tch);
-        TextView lesson_name = findViewById(R.id.lesson_name_tch);
-        TextView time_view = findViewById(R.id.time_header_tch);
-        overlay = findViewById(R.id.attendanceTchOverlay);
-        textBox = findViewById(R.id.textBoxTch);
-        messageView = findViewById(R.id.confirmTextTch);
-        okButton = findViewById(R.id.confirmTch);
-        messageBoxHandler(View.INVISIBLE,"");
-        okButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View V){
-                messageBoxHandler(View.INVISIBLE,"");
 
-            }
-        });
-        if (!lessonsData.lessonsData.isEmpty()){
-            lesson_name.setText((String)lessonsData.lessonsData.get(0)[3]);
-            time_view.setText(lessonsData.getFormatedTime(0));}
-        else{
-            lesson_name.setText("Сейчас не проходит занятие");
-            time_view.setText("00:00\n00:00");
-        }
-        tableLayoutTch.post(new Runnable() {
-            @Override
-            public void run() {
-                for (String[] stud : parseData()){
-                    tableLayoutTch.addView(makeTableInst(stud[0],stud[1],stud[2],scrollable_view_tch.getMeasuredWidth()));
-                }
-            }
-        });
-        checkAttendanceTch.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View V) {
-
-                try {
-
-                    readDevices();
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        });
-    }
     private void readDevices() throws InterruptedException {
         if (lessonsData.lessonsData.isEmpty()){
             messageBoxHandler(View.VISIBLE,"Сейчас не проходит занятие");
@@ -263,7 +231,7 @@ public class AttendancePage extends AppCompatActivity {
             return;
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            bluetoothReader = new BluetoothReader(context);
+            bluetoothReader = new BluetoothReader(this);
         }
         changeButtonsClickability(getColor(R.color.ui_blue_grayed),false);
         new Thread(new Runnable() {
@@ -285,18 +253,15 @@ public class AttendancePage extends AppCompatActivity {
         }).start();
 
 
-    }//TODO
+    }
     private void changeButtonsClickability(int Color, boolean clickable){
         if(Objects.equals(userData.role, "s")){
             groupBtn.setBackgroundColor(Color);
             groupBtn.setEnabled(clickable);
-            checkAttendanceBtn.setBackgroundColor(Color);
-            checkAttendanceBtn.setEnabled(clickable);
+
         }
-        else{
-            checkAttendanceTch.setBackgroundColor(Color);
-            checkAttendanceTch.setEnabled(clickable);
-        }
+        checkAttendanceBtn.setBackgroundColor(Color);
+        checkAttendanceBtn.setEnabled(clickable);
     }
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
@@ -307,7 +272,7 @@ public class AttendancePage extends AppCompatActivity {
                changeButtonsClickability(getColor(R.color.ui_blue),true);
                attendanceData.matchAddressesToStudents(bluetoothReader.addresses);
                parseData();
-               loadPage();
+               checkDataUpdateAndShow();
 
             }
         }
@@ -315,7 +280,7 @@ public class AttendancePage extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
-        loadPage();
+        checkDataUpdateAndShow();
         //Code to refresh listview
     }
 }
