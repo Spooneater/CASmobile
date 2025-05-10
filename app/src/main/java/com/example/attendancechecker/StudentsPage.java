@@ -1,5 +1,6 @@
 package com.example.attendancechecker;
 
+import android.bluetooth.BluetoothAdapter;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Gravity;
@@ -16,9 +17,9 @@ import androidx.appcompat.content.res.AppCompatResources;
 public class StudentsPage extends AppCompatActivity {
     public static final int WIRED = 123456;
     UserData userData;
-    private View editStudOverlay;
-    private View textBox;
-    private TextView confirmText,errorMessageConf;
+    private View editStudOverlayView;
+    private View textBoxView;
+    private TextView confirmTextView, errorMessageConfTextView;
     private Button confirmStudBtn,declineStudBtn;
     //Students_data[i] : i - id студента в рамках таблицы(+1); [0]-id студента используемый для привязки устройства (long); [1]-ФИО (String);[2] : привязано ли устройство(Boolean)
     protected Object[][] students_data;
@@ -91,23 +92,25 @@ public class StudentsPage extends AppCompatActivity {
 
     protected void showConfirmBox(Integer id){
         is_asking_to_confirm = true;
-        textBox.setVisibility(View.VISIBLE);
-        editStudOverlay.setVisibility(View.VISIBLE);
-        confirmText.setVisibility(View.VISIBLE);
-        errorMessageConf.setVisibility(View.VISIBLE);
+        textBoxView.setVisibility(View.VISIBLE);
+        editStudOverlayView.setVisibility(View.VISIBLE);
+
+        confirmTextView.setVisibility(View.VISIBLE);
+        errorMessageConfTextView.setVisibility(View.VISIBLE);
         confirmStudBtn.setVisibility(View.VISIBLE);
         declineStudBtn.setVisibility(View.VISIBLE);
-        errorMessageConf.setText("");
-        confirmText.setText(String.format("Вы уверены, что хотите выбрать устройство для студента %s?", students_data[id][1]));
+
+        errorMessageConfTextView.setText("");
+        confirmTextView.setText(String.format("Вы уверены, что хотите выбрать устройство для студента %s?", students_data[id][1]));
 
     };
     //Скрывает оверлей для подтверждениея выбора студента
     protected void hideConfirmBox(){
         is_asking_to_confirm = false;
-        textBox.setVisibility(View.INVISIBLE);
-        editStudOverlay.setVisibility(View.INVISIBLE);
-        confirmText.setVisibility(View.INVISIBLE);
-        errorMessageConf.setVisibility(View.INVISIBLE);
+        textBoxView.setVisibility(View.INVISIBLE);
+        editStudOverlayView.setVisibility(View.INVISIBLE);
+        confirmTextView.setVisibility(View.INVISIBLE);
+        errorMessageConfTextView.setVisibility(View.INVISIBLE);
         confirmStudBtn.setVisibility(View.INVISIBLE);
         declineStudBtn.setVisibility(View.INVISIBLE);
     }
@@ -129,22 +132,23 @@ public class StudentsPage extends AppCompatActivity {
 
         super.onCreate(savedInstanceState);
 
-        loadStuff();
         getOnBackPressedDispatcher().addCallback(this,callback);
     }
-    //TODO сделать проверку включенности bluetooth
-    public boolean checkIfBluetoothed(){
-        return true;
+    @Override
+    protected void onResume(){
+        loadStuff();
+        super.onResume();
     }
     //Отрисовка экрана
     protected void loadStuff(){
         setContentView(R.layout.activity_edit_group);
-        textBox = findViewById(R.id.textBox);
-        editStudOverlay = findViewById(R.id.editStudOverlay);
+        textBoxView = findViewById(R.id.textBox);
+        editStudOverlayView = findViewById(R.id.editStudOverlay);
         TextView TextThing = findViewById(R.id.TextThing);
-        TextThing.setText(String.format("Управление группой (%s)", userData.group_id));
-        confirmText = findViewById(R.id.confirmText);
-        errorMessageConf = findViewById(R.id.errorMessageConf);
+        TextThing.setText(String.format("Управление группой (%s)", userData.group_id_starosta));
+
+        confirmTextView = findViewById(R.id.confirmText);
+        errorMessageConfTextView = findViewById(R.id.errorMessageConf);
         confirmStudBtn = findViewById(R.id.confirmStudBtn);
         declineStudBtn = findViewById(R.id.declineStudBtn);
         Button retBtn = findViewById(R.id.ret_button);
@@ -163,11 +167,14 @@ public class StudentsPage extends AppCompatActivity {
         confirmStudBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (! checkIfBluetoothed()){
-                    errorMessageConf.setText("Невозможно начать поиск устройств с выключенным Bluetooth");
+                BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+                if (mBluetoothAdapter == null) {
+                    errorMessageConfTextView.setText("Устросйство не поддерживает Bluetooth");
+                } else if (!mBluetoothAdapter.isEnabled()) {
+                    errorMessageConfTextView.setText("Невозможно начать поиск устройств с выключенным Bluetooth");
                 }
                 else{
-                    errorMessageConf.setText("");
+                    errorMessageConfTextView.setText("");
                     Intent intent = new Intent(StudentsPage.this, AddressesPage.class);
                     intent.putExtra("student_id",(int)students_data[chosen_student_id][0]);
                     intent.putExtra("student_name",(String)students_data[chosen_student_id][1]);

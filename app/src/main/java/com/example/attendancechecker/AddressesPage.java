@@ -147,7 +147,7 @@ public class AddressesPage extends AppCompatActivity {
             return;
         }
         //TODO Добавить запрос для проверки привязки устройства
-        if (!userData.requestWiring((String)devices_data.get(device_id)[0],student_id)){
+        if (userData.requestWiring((String)devices_data.get(device_id)[0],student_id) == 1){
             errorMessageDevice.setText("Этот адрес уже привязан к другому студенту");
             return;
         }

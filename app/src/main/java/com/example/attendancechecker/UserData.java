@@ -12,7 +12,7 @@ public class UserData {
     String login;
     String password;
     String role;
-    int group_id;
+    int group_id_starosta;
     int self_id;
     boolean changed;
     boolean logged_in;
@@ -22,6 +22,8 @@ public class UserData {
         changed = true;
         this.login = login;
         this.password = password;
+        this.logged_in = false;
+        checkLogin();
 
 
     }
@@ -29,6 +31,7 @@ public class UserData {
     public boolean updateData(){
         if (logged_in){
             getStudentsData();
+            this.changed = true;
             return  true;
         }
         else{
@@ -37,9 +40,10 @@ public class UserData {
 
     }
     //s-староста. t-teacher, d-director
+    //TODO сделать запрос на авторизацию
     public boolean checkLogin(){
         this.role = "s";
-        this.group_id = 2;
+        this.group_id_starosta = 2;
         this.self_id = 123456;
         this.logged_in = true;
         return true;
@@ -54,8 +58,9 @@ public class UserData {
     }
     //
     //TODO Сделать запрос на попытку привязки. true если получилось. false - если нет
-    public boolean requestWiring(String address, int student_id){
-        return true;
+    public int requestWiring(String address, int student_id){
+        getStudentsData();
+        return 0;//0-Все норм. 1-Адрес занят. 2-Проблемесы с интернетом
     }
     //Получение данных о студентах
     //[0] - student_id[int]
@@ -71,4 +76,5 @@ public class UserData {
         this.studentsData.add(new Object[]{4444,1,2,"-","I am Third"});
         this.studentsData.add(new Object[]{5555,2,2,"DA:4C:10:DE:17:00","I am Fourth"});
     }
+
 }

@@ -2,17 +2,14 @@ package com.example.attendancechecker;
 
 import static java.lang.Thread.sleep;
 
-import android.annotation.SuppressLint;
-import android.bluetooth.BluetoothDevice;
+import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.LinearLayout;
@@ -22,7 +19,6 @@ import android.widget.TextView;
 import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
-import androidx.core.app.ActivityCompat;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,18 +26,32 @@ import java.util.Objects;
 
 public class AttendancePage extends AppCompatActivity {
     public static final String STOPWAITING = "WAITING_!@#$";
-    private Button group_btn,check_attendance;
-    private LinearLayout table_layout;
-    private Button check_attendance_tch;
-    private LinearLayout table_layout_tch;
-    volatile boolean isChecking;
+    private Button groupBtn, checkAttendanceBtn;
+    private LinearLayout tableLayout;
+    private Button checkAttendanceTch;
+    private LinearLayout tableLayoutTch;
     boolean canClick;
     public UserData userData;
     public LessonsData lessonsData;
     public AttendanceData attendanceData;
     private BluetoothReader bluetoothReader;
     private Context context;
+    private boolean isMessagePresent;
+    //message box
+    private View textBox;
+    private View overlay;
+    private TextView messageView;
+    private Button okButton;
 
+    protected void messageBoxHandler(int visibility, String message){
+        isMessagePresent = visibility == View.VISIBLE;
+
+        textBox.setVisibility(visibility);
+        overlay.setVisibility(visibility);
+        messageView.setVisibility(visibility);
+        messageView.setText(message);
+        okButton.setVisibility(visibility);
+    }
     //Штука для создания одной строки таблицы посещения
     protected LinearLayout makeTableInst(String id, String fio, String attend, Integer width){
 
@@ -90,10 +100,21 @@ public class AttendancePage extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         context = this;
         canClick = true;
-        lessonsData = new LessonsData();
+        lessonsData = new LessonsData(userData);
         //Получаем вытащенные данные
         userData = LoginPage.userData;
         attendanceData = new AttendanceData(lessonsData,userData);
+        OnBackPressedCallback callback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                if (isMessagePresent){
+                    messageBoxHandler(View.INVISIBLE,"");}
+                else{
+                    finish();
+                }
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this,callback);
         IntentFilter intentFilter = new IntentFilter(STOPWAITING);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             registerReceiver(receiver,intentFilter,RECEIVER_EXPORTED);
@@ -102,9 +123,9 @@ public class AttendancePage extends AppCompatActivity {
 
     }
     protected void loadPage(){
-        LessonsData tempLessonData = new LessonsData();
-        if ((tempLessonData.lesson_id != lessonsData.lesson_id)||(userData.isChanged())){
-            lessonsData = new LessonsData();
+        LessonsData tempLessonData = new LessonsData(userData);
+        if ((!tempLessonData.lessons_ids.equals(lessonsData.lessons_ids))||(userData.isChanged())){
+            lessonsData = tempLessonData;
             //Получаем вытащенные данные
             attendanceData = new AttendanceData(lessonsData,userData);}
 
@@ -113,7 +134,7 @@ public class AttendancePage extends AppCompatActivity {
         else mainScreenTeacher();
     }
 
-    //TODO Добавить получение данных о студентишках. В ответ массив и массивов строк где [0]-номер в таблице,[1]-fio, [2]-посещение['+',"-",""]
+    // В ответ массив и массивов строк где [0]-номер в таблице,[1]-fio, [2]-посещение['+',"-",""]
     protected List<String[]> parseData(){
         List<String[]> students_Attendance = new ArrayList<>();
         int ind = 1;
@@ -121,44 +142,57 @@ public class AttendancePage extends AppCompatActivity {
             students_Attendance.add(new String[]{String.valueOf(ind),(String)stud[1],(String) stud[3]});
             ind++;
         }
-
         return  students_Attendance;
-        //students_Attendance[0]= new String[]{"1", "ФАФФОЫАФДЫОЛА", "+"};
-        //students_Attendance[1]= new String[]{"2", "ASDaSD", "+"};
-        //students_Attendance[2]= new String[]{"3", "123213", "-"};
-        //return students_Attendance;
     }
     protected void mainScreenStarost(){
         setContentView(R.layout.activity_main_screen_startosta);
-        check_attendance = findViewById(R.id.check_attendance);
-        table_layout = findViewById(R.id.table_layout);
-        group_btn = findViewById(R.id.Group_btn);
+        checkAttendanceBtn = findViewById(R.id.check_attendance);
+        tableLayout = findViewById(R.id.table_layout);
+        groupBtn = findViewById(R.id.Group_btn);
         ScrollView scrollable_view = findViewById(R.id.scrollView2);
         TextView lesson_name = findViewById(R.id.lesson_name);
         TextView time_view = findViewById(R.id.time_header);
-        lesson_name.setText(lessonsData.name);
-        time_view.setText(lessonsData.getFormatedTime());
-        table_layout.post(new Runnable() {
+        overlay = findViewById(R.id.attendanceStarostOverlay);
+        textBox = findViewById(R.id.textBoxStarost);
+        messageView = findViewById(R.id.confirmTextStarost);
+        okButton = findViewById(R.id.confirmStarost);
+        messageBoxHandler(View.INVISIBLE,"");
+        okButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View V){
+                messageBoxHandler(View.INVISIBLE,"");
+
+            }
+        });
+        if (!lessonsData.lessonsData.isEmpty()){
+            lesson_name.setText((String)lessonsData.lessonsData.get(0)[3]);
+            time_view.setText(lessonsData.getFormatedTime(0));}
+        else{
+            lesson_name.setText("Сейчас не проходит занятие");
+            time_view.setText("00:00\n00:00");
+        }
+        tableLayout.post(new Runnable() {
             @Override
             public void run() {
                 for (String[] stud : parseData()){
 
-                    table_layout.addView(makeTableInst(stud[0],stud[1],stud[2],scrollable_view.getMeasuredWidth()));
+                    tableLayout.addView(makeTableInst(stud[0],stud[1],stud[2],scrollable_view.getMeasuredWidth()));
                 }
             }
         });
-        check_attendance.setOnClickListener(new View.OnClickListener() {
+        checkAttendanceBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View V) {
 
                 try {
+
                     readDevices();
                 } catch (InterruptedException e) {
                     throw new RuntimeException(e);
                 }
             }
         });
-        group_btn.setOnClickListener(new View.OnClickListener(){
+        groupBtn.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View V){
 
@@ -170,36 +204,68 @@ public class AttendancePage extends AppCompatActivity {
     protected void mainScreenTeacher(){
         setContentView(R.layout.activity_main_screen_teacher);
 
-        check_attendance_tch = findViewById(R.id.check_attendance_tch);
-        table_layout_tch = findViewById(R.id.table_layout_tch);
+        checkAttendanceTch = findViewById(R.id.check_attendance_tch);
+        tableLayoutTch = findViewById(R.id.table_layout_tch);
         ScrollView scrollable_view_tch = findViewById(R.id.scrollView2_tch);
         TextView lesson_name = findViewById(R.id.lesson_name_tch);
         TextView time_view = findViewById(R.id.time_header_tch);
-        lesson_name.setText(lessonsData.name);
-        time_view.setText(lessonsData.getFormatedTime());
-        table_layout_tch.post(new Runnable() {
+        overlay = findViewById(R.id.attendanceTchOverlay);
+        textBox = findViewById(R.id.textBoxTch);
+        messageView = findViewById(R.id.confirmTextTch);
+        okButton = findViewById(R.id.confirmTch);
+        messageBoxHandler(View.INVISIBLE,"");
+        okButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View V){
+                messageBoxHandler(View.INVISIBLE,"");
+
+            }
+        });
+        if (!lessonsData.lessonsData.isEmpty()){
+            lesson_name.setText((String)lessonsData.lessonsData.get(0)[3]);
+            time_view.setText(lessonsData.getFormatedTime(0));}
+        else{
+            lesson_name.setText("Сейчас не проходит занятие");
+            time_view.setText("00:00\n00:00");
+        }
+        tableLayoutTch.post(new Runnable() {
             @Override
             public void run() {
                 for (String[] stud : parseData()){
-                    table_layout_tch.addView(makeTableInst(stud[0],stud[1],stud[2],scrollable_view_tch.getMeasuredWidth()));
+                    tableLayoutTch.addView(makeTableInst(stud[0],stud[1],stud[2],scrollable_view_tch.getMeasuredWidth()));
                 }
             }
         });
-        check_attendance_tch.setOnClickListener(new View.OnClickListener() {
+        checkAttendanceTch.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View V) {
-                if (!canClick){
-                    return;
+
+                try {
+
+                    readDevices();
+                } catch (InterruptedException e) {
+                    throw new RuntimeException(e);
                 }
-                loadPage();
             }
         });
     }
     private void readDevices() throws InterruptedException {
+        if (lessonsData.lessonsData.isEmpty()){
+            messageBoxHandler(View.VISIBLE,"Сейчас не проходит занятие");
+            return;
+        }
+        BluetoothAdapter mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+        if (mBluetoothAdapter == null) {
+            messageBoxHandler(View.VISIBLE,"Устросйство не поддерживает Bluetooth");
+            return;
+        } else if (!mBluetoothAdapter.isEnabled()) {
+            messageBoxHandler(View.VISIBLE,"Невозможно начать поиск устройств с выключенным Bluetooth");
+            return;
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             bluetoothReader = new BluetoothReader(context);
         }
-        blockClicking();
+        changeButtonsClickability(getColor(R.color.ui_blue_grayed),false);
         new Thread(new Runnable() {
             @Override
             public void run() {
@@ -219,30 +285,17 @@ public class AttendancePage extends AppCompatActivity {
         }).start();
 
 
-    }
-    private void blockClicking(){
+    }//TODO
+    private void changeButtonsClickability(int Color, boolean clickable){
         if(Objects.equals(userData.role, "s")){
-            group_btn.setBackgroundColor(getColor(R.color.ui_blue_grayed));
-            group_btn.setEnabled(false);
-            check_attendance.setBackgroundColor(getColor(R.color.ui_blue_grayed));
-            check_attendance.setEnabled(false);
+            groupBtn.setBackgroundColor(Color);
+            groupBtn.setEnabled(clickable);
+            checkAttendanceBtn.setBackgroundColor(Color);
+            checkAttendanceBtn.setEnabled(clickable);
         }
         else{
-            check_attendance_tch.setBackgroundColor(getColor(R.color.ui_blue_grayed));
-            check_attendance_tch.setEnabled(false);
-        }
-    }
-    private void allowClicking(){
-        if(Objects.equals(userData.role, "s")){
-            group_btn.setBackgroundColor(getColor(R.color.ui_blue));
-            group_btn.setEnabled(true);
-
-            check_attendance.setBackgroundColor(getColor(R.color.ui_blue));
-            check_attendance.setEnabled(true);
-        }
-        else{
-            check_attendance_tch.setBackgroundColor(getColor(R.color.ui_blue));
-            check_attendance_tch.setEnabled(true);
+            checkAttendanceTch.setBackgroundColor(Color);
+            checkAttendanceTch.setEnabled(clickable);
         }
     }
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
@@ -251,7 +304,7 @@ public class AttendancePage extends AppCompatActivity {
             String action = intent.getAction();
 
             if (STOPWAITING.equals(action)) {
-               allowClicking();
+               changeButtonsClickability(getColor(R.color.ui_blue),true);
                attendanceData.matchAddressesToStudents(bluetoothReader.addresses);
                parseData();
                loadPage();
