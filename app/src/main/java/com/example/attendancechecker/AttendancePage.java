@@ -20,23 +20,28 @@ import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.content.res.AppCompatResources;
 
+import org.json.JSONException;
+
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
 public class AttendancePage extends AppCompatActivity {
     public static final String STOPWAITING = "WAITING_!@#$";
+    public static final String STOPWAITING_FOR_UPDATE = "AAAAAA";
+    public static final String STOPWAITING_FOR_SEND = "BBBBBB";
     private Button groupBtn, checkAttendanceBtn;
     private LinearLayout tableLayout;
     boolean canClick;
     public UserData userData;
-    public LessonsData lessonsData;
+    public LessonsData lessonsData, tmpLessonData;
     public AttendanceData attendanceData;
     private BluetoothReader bluetoothReader;
     private boolean isMessagePresent;
     //message box
     private View textBox;
     private View overlay;
+    private View waitOverlay;
     private TextView messageView;
     private Button okButton;
 
@@ -91,15 +96,40 @@ public class AttendancePage extends AppCompatActivity {
 
         return line;
     }
+    public LessonsData getLessonData(){
+        if (overlay != null)
+            overlay.setVisibility(View.VISIBLE);
+        LessonsData lfessonsData = new LessonsData(userData);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (lfessonsData.is_updating_data)
+                        sleep(50);
+
+                    Intent intent = new Intent();
+                    intent.setAction(STOPWAITING_FOR_UPDATE);
+                    intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                    sendBroadcast(intent);
+                } catch (InterruptedException e) {
+
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
+        return lfessonsData;
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
         super.onCreate(savedInstanceState);
+
         canClick = true;
-        lessonsData = new LessonsData(userData);
+
+
         //Получаем вытащенные данные
         userData = LoginPage.userData;
-        attendanceData = new AttendanceData(lessonsData,userData);
+
         OnBackPressedCallback callback = new OnBackPressedCallback(true) {
             @Override
             public void handleOnBackPressed() {
@@ -112,21 +142,19 @@ public class AttendancePage extends AppCompatActivity {
         };
         getOnBackPressedDispatcher().addCallback(this,callback);
         IntentFilter intentFilter = new IntentFilter(STOPWAITING);
+        IntentFilter intentFilter2 = new IntentFilter(STOPWAITING_FOR_UPDATE);
+        IntentFilter intentFilter3 = new IntentFilter(STOPWAITING_FOR_SEND);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             registerReceiver(receiver,intentFilter,RECEIVER_EXPORTED);
+            registerReceiver(receiver,intentFilter2,RECEIVER_EXPORTED);
+            registerReceiver(receiver,intentFilter3,RECEIVER_EXPORTED);
         }
-        checkDataUpdateAndShow();
+
 
     }
     protected void checkDataUpdateAndShow(){
-        LessonsData tempLessonData = new LessonsData(userData);
-        if ((!tempLessonData.lessons_ids.equals(lessonsData.lessons_ids))||(userData.isChanged())){
-            lessonsData = tempLessonData;
-            //Получаем вытащенные данные
-            attendanceData = new AttendanceData(lessonsData,userData);}
+        tmpLessonData = getLessonData();
 
-        //Пока считаем что старосте старостовский экран, остальным учительский
-        showPage();
     }
 
     // В ответ массив и массивов строк где [0]-номер в таблице,[1]-fio, [2]-посещение['+',"-",""]
@@ -143,7 +171,8 @@ public class AttendancePage extends AppCompatActivity {
         ScrollView scrollable_view;
         TextView lessonName;
         TextView time_view;
-        if (userData.role.equals("s")){
+        parseData();
+        if (userData.role.equals("starosta")){
             setContentView(R.layout.activity_main_screen_startosta);
             checkAttendanceBtn = findViewById(R.id.check_attendance);
             tableLayout = findViewById(R.id.table_layout);
@@ -152,6 +181,7 @@ public class AttendancePage extends AppCompatActivity {
             lessonName = findViewById(R.id.lesson_name);
             time_view = findViewById(R.id.time_header);
             overlay = findViewById(R.id.attendanceStarostOverlay);
+            waitOverlay = findViewById(R.id.waitOverlayStarost);
             textBox = findViewById(R.id.textBoxStarost);
             messageView = findViewById(R.id.confirmTextStarost);
             okButton = findViewById(R.id.confirmStarost);
@@ -167,6 +197,7 @@ public class AttendancePage extends AppCompatActivity {
         }
         else{
             setContentView(R.layout.activity_main_screen_teacher);
+            waitOverlay = findViewById(R.id.waitOverlayTeacher);
             checkAttendanceBtn = findViewById(R.id.check_attendance_tch);
             tableLayout = findViewById(R.id.table_layout_tch);
             scrollable_view = findViewById(R.id.scrollView2_tch);
@@ -263,6 +294,7 @@ public class AttendancePage extends AppCompatActivity {
         checkAttendanceBtn.setBackgroundColor(Color);
         checkAttendanceBtn.setEnabled(clickable);
     }
+
     private final BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
@@ -271,8 +303,51 @@ public class AttendancePage extends AppCompatActivity {
             if (STOPWAITING.equals(action)) {
                changeButtonsClickability(getColor(R.color.ui_blue),true);
                attendanceData.matchAddressesToStudents(bluetoothReader.addresses);
-               parseData();
-               checkDataUpdateAndShow();
+                if (overlay != null)
+                    overlay.setVisibility(View.VISIBLE);
+                try {
+                    attendanceData.sendData();
+                } catch (JSONException e) {
+                    throw new RuntimeException(e);
+                }
+                new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            while (attendanceData.is_sending)
+                                sleep(25);
+                            Intent intent = new Intent();
+                            intent.setAction(STOPWAITING_FOR_SEND);
+                            intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                            sendBroadcast(intent);
+                        } catch (InterruptedException e) {
+
+                            throw new RuntimeException(e);
+                        }
+                    }
+                }).start();
+                showPage();
+
+            }
+            if (STOPWAITING_FOR_UPDATE.equals(action)){
+
+                if (overlay != null)
+                    overlay.setVisibility(View.INVISIBLE);
+                if (lessonsData == null){
+                    lessonsData = tmpLessonData;
+                }
+                if ((!tmpLessonData.lessons_ids.equals(lessonsData.lessons_ids))||(userData.isChanged())){
+                    lessonsData = tmpLessonData;
+                    //Получаем вытащенные данные
+                    attendanceData = new AttendanceData(lessonsData,userData,context);}
+
+                //Пока считаем что старосте старостовский экран, остальным учительский
+                synchronized (this){showPage();}
+            }
+            if (STOPWAITING_FOR_SEND.equals(action)){
+                checkDataUpdateAndShow();
+                if (overlay != null)
+                    overlay.setVisibility(View.INVISIBLE);
 
             }
         }

@@ -1,5 +1,7 @@
 package com.example.attendancechecker;
 
+import static java.lang.Thread.sleep;
+
 import android.Manifest;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -32,8 +34,11 @@ public class AddressesPage extends AppCompatActivity {
 
         return cm.getActiveNetworkInfo() != null && cm.getActiveNetworkInfo().isConnectedOrConnecting();
     }
+    public static  final String STOPWIRING = "ASDJlAJDS";
     public static final int WIRED = 123456;
     public static final int NOTWIRED = 654321;
+    public static final  String STOPUPDATINGF = "adsksaaadk";
+    public View overlay;
     UserData userData;
     //devices_data[i] : i - id студента в рамках таблицы(1..n); [0]-адрес устройства (string); [1]-название (String);
     List<Object[]> devicesData = new ArrayList<Object[]>();
@@ -132,6 +137,38 @@ public class AddressesPage extends AppCompatActivity {
                     }
                 }
             }
+            if (STOPWIRING.equals(action)){
+                overlay.setVisibility(View.INVISIBLE);
+                if (userData.wiring_result == 1){
+                    errorMessageDevice.setText("Этот адрес уже привязан к другому студенту");
+                    return;
+                }
+                if (userData.wiring_result == 0){
+                    overlay.setVisibility(View.VISIBLE);
+                    LoginPage.userData.updateData();
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                while (userData.is_updating_data)
+                                    sleep(25);
+                                Intent intentf = new Intent();
+                                intentf.setAction(STOPUPDATINGF);
+                                intentf.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                                sendBroadcast(intentf);
+                            } catch (InterruptedException e) {
+
+                                throw new RuntimeException(e);
+                            }
+                        }
+                    }).start();
+
+                }
+            }
+            if (STOPUPDATINGF.equals(action)){
+                overlay.setVisibility(View.INVISIBLE);
+                finish();
+            }
         }
     };
 
@@ -145,13 +182,26 @@ public class AddressesPage extends AppCompatActivity {
             errorMessageDevice.setText("Привязывать устройства можно только при подключении к сети");
             return;
         }
-        //TODO Добавить запрос для проверки привязки устройства
-        if (userData.requestWiring((String) devicesData.get(deviceId)[0], studentId) == 1){
-            errorMessageDevice.setText("Этот адрес уже привязан к другому студенту");
-            return;
-        }
-        LoginPage.userData.updateData();
-        finish();
+        overlay.setVisibility(View.VISIBLE);
+        userData.requestWiring((String) devicesData.get(deviceId)[0], studentId);
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    while (userData.is_wiring)
+                        sleep(25);
+                    Intent intent = new Intent();
+                    intent.setAction(STOPWIRING);
+                    intent.addFlags(Intent.FLAG_INCLUDE_STOPPED_PACKAGES);
+                    sendBroadcast(intent);
+                } catch (InterruptedException e) {
+
+                    throw new RuntimeException(e);
+                }
+            }
+        }).start();
+
+
 
     }
     @RequiresApi(api = Build.VERSION_CODES.S)
@@ -164,7 +214,7 @@ public class AddressesPage extends AppCompatActivity {
         Button confirmBtn = findViewById(R.id.confirmDeviceBtn);
         Button returnBtn =  findViewById(R.id.ret_button_dev);
         TextView header = findViewById(R.id.TextThingDevice);
-
+        overlay = findViewById(R.id.deviceOverlay);
         returnBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -197,7 +247,11 @@ public class AddressesPage extends AppCompatActivity {
         }
 
         IntentFilter intentFilter = new IntentFilter(BluetoothDevice.ACTION_FOUND);
+        IntentFilter intentFilter2 = new IntentFilter(STOPWIRING);
+        IntentFilter intentFilter3 = new IntentFilter(STOPUPDATINGF);
         registerReceiver(receiver,intentFilter);
+        registerReceiver(receiver,intentFilter2,RECEIVER_EXPORTED);
+        registerReceiver(receiver,intentFilter3,RECEIVER_EXPORTED);
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_SCAN) != PackageManager.PERMISSION_GRANTED) {
                 // TODO: Consider calling
                 //    ActivityCompat#requestPermissions

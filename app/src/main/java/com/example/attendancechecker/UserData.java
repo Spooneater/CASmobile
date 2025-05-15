@@ -1,7 +1,26 @@
 package com.example.attendancechecker;
 
+import com.android.volley.AuthFailureError;
+import com.android.volley.Request;
+import com.android.volley.Response;
+import com.android.volley.VolleyError;
+import com.android.volley.toolbox.JsonArrayRequest;
+import com.android.volley.toolbox.JsonObjectRequest;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.UnsupportedEncodingException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 public class UserData {
     int STUDENT_ID =0;
@@ -13,36 +32,97 @@ public class UserData {
     String password;
     String role;
     int group_id_starosta;
+    String mRequestBody;
     int self_id;
     boolean changed;
     boolean logged_in;
-    List<Object[]>  studentsData;
+    boolean is_wiring;
 
-    public UserData(String login, String password){
+    int wiring_result;
+    List<Object[]>  studentsData;
+    boolean logging_in_now;
+    public RequestManager requestManager;
+    JSONObject jsonObject;
+    public JsonArrayRequest jsonArrayRequest;
+    public boolean is_updating_data;
+    public JsonObjectRequest jsonObjectRequest;
+    public int to_updated_users;
+    public UserData(String login, String password, RequestManager requestManager){
         changed = true;
+        this.jsonObject = new  JSONObject();
         this.login = login;
         this.password = password;
         this.logged_in = false;
-        checkLogin();
+        this.logging_in_now = false;
+        this.requestManager =requestManager;
+        try{
+            this.jsonObject.put("login",(String)login);
+            this.jsonObject.put("password",password);
+        } catch (JSONException e) {
+
+        }
+
+        this.mRequestBody = jsonObject.toString();
 
 
     }
     //True uspeh , false net
     public boolean updateData(){
+        this.is_updating_data = true;
         if (logged_in){
             getStudentsData();
             this.changed = true;
             return  true;
         }
         else{
+            is_updating_data = false;
             return false;
         }
+
+    }
+
+    public void makeLoginRequest(){
+
+        logging_in_now = true;
+        jsonObjectRequest
+                = new JsonObjectRequest(
+                Request.Method.POST,
+                requestManager.url+"/api/login/",
+                jsonObject,
+
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+                        logging_in_now = false;
+                        logged_in = true;
+                        try {
+                            self_id = Integer.parseInt(((JSONObject) response).getString("id"));
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                        try {
+                            role = ((JSONObject) response).getString("role");
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        logged_in = false;
+                        logging_in_now = false;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonObjectRequest);
 
     }
     //s-староста. t-teacher, d-director
     //TODO сделать запрос на авторизацию
     public boolean checkLogin(){
-        this.role = "s";
+        this.role = "starosta";
         this.group_id_starosta = 2;
         this.self_id = 123456;
         this.logged_in = true;
@@ -58,23 +138,283 @@ public class UserData {
     }
     //
     //TODO Сделать запрос на попытку привязки. true если получилось. false - если нет
-    public int requestWiring(String address, int student_id){
-        getStudentsData();
-        return 0;//0-Все норм. 1-Адрес занят. 2-Проблемесы с интернетом
-    }
+    public void requestWiring(String address, int student_id){
+        jsonArrayRequest
+                = new JsonArrayRequest(
+                Request.Method.GET,
+                requestManager.url+"/student-groups/",
+                null,
+
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+                        JSONArray responsed = ((JSONArray) response);
+                        for (int i = 0; i < responsed.length(); i++) {
+                            try {
+                                JSONObject jsondata = (JSONObject) responsed.get(i);
+                                if (jsondata.getString("device_address").equals(address)) {
+                                    wiring_result = 1;
+                                    is_wiring =false;
+                                }
+
+                            } catch (JSONException e) {
+                                throw new RuntimeException(e);
+                            }
+
+                        }
+                        getStudentNames();
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        is_wiring = false;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonArrayRequest);
+    }   //0-Все норм. 1-Адрес занят. 2-Проблемесы с интернетом
+
     //Получение данных о студентах
     //[0] - student_id[int]
     //[1] - group_id[int]
     //[2] - sub_group_id[int]
     //[3] - device_adress[string]
     //[4] - name[string] + surname[string] +patronymic[string]
-    //TODO сделать api запросики
+
     public void getStudentsData(){
+        this.is_updating_data = true;
         this.studentsData = new ArrayList<Object[]>();
-        this.studentsData.add(new Object[]{1234,1,2,"-","I am First"});
-        this.studentsData.add(new Object[]{5678,1,2,"DA:4C:10:DE:17:00","I am Second"});
-        this.studentsData.add(new Object[]{4444,1,2,"-","I am Third"});
-        this.studentsData.add(new Object[]{5555,2,2,"DA:4C:10:DE:17:00","I am Fourth"});
+        if (Objects.equals(role, "starosta")){
+            getStudentsDataStarostaPhase1();
+        } else if (Objects.equals(role, "teacher")) {
+            getLessons();
+        }
+
+
+        //this.studentsData.add(new Object[]{1234,1,2,"-","I am First"});
+        //this.studentsData.add(new Object[]{5678,1,2,"DA:4C:10:DE:17:00","I am Second"});
+        //this.studentsData.add(new Object[]{4444,1,2,"-","I am Third"});
+        //this.studentsData.add(new Object[]{5555,2,2,"DA:4C:10:DE:17:00","I am Fourth"});
     }
+    public void getStudentNames(){
+        jsonArrayRequest
+                = new JsonArrayRequest(
+                Request.Method.GET,
+                requestManager.url+"/users/",
+                null,
+
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+
+                        JSONArray responsed = ((JSONArray) response);
+                        for (int i = 0; i<responsed.length(); i++){
+                            for (int j = 0; j<studentsData.size();j++){
+                                try {
+                                    if ((int)studentsData.get(j)[STUDENT_ID] == Integer.parseInt( ((JSONObject)responsed.get(i)).getString("id"))){
+                                        studentsData.get(j)[FIO] = ((JSONObject)responsed.get(i)).getString("name") + " " + ((JSONObject)responsed.get(i)).getString("surname") + " " + ((JSONObject)responsed.get(i)).getString("patronymic");
+
+                                    };
+                                } catch (JSONException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        }
+                        is_updating_data = false;
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        is_updating_data = false;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonArrayRequest);
+
+    }
+
+    public void getGroups(HashSet<Integer> groups_ids){
+        jsonArrayRequest
+                = new JsonArrayRequest(
+                Request.Method.GET,
+                requestManager.url+"/student-groups/",
+                null,
+
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+                        JSONArray responsed = ((JSONArray) response);
+                        for (int i = 0; i<responsed.length(); i++){
+                            try {
+                                JSONObject jsondata = (JSONObject) responsed.get(i);
+                                if (groups_ids.contains(Integer.parseInt(((JSONObject)responsed.get(i)).getString("group_id")))){
+                                    studentsData.add(new Object[]{
+                                            Integer.parseInt((jsondata).getString("student_id")),
+                                            Integer.parseInt((jsondata).getString("group_id")),
+                                            Integer.parseInt((jsondata).getString("subgroup")),
+                                            (jsondata).getString("device_address"),
+                                            ""});
+                                }
+                            } catch (JSONException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        getStudentNames();
+
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        is_updating_data = false;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonArrayRequest);
+    }
+    public void getLessons(){
+        HashSet<Integer> groups_ids = new HashSet<>();
+        jsonArrayRequest
+                = new JsonArrayRequest(
+                Request.Method.GET,
+                requestManager.url+"/lessons/",
+                null,
+
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+                        JSONArray responsed = ((JSONArray) response);
+                        for (int i = 0; i<responsed.length(); i++){
+                            try {
+                                if (Integer.parseInt(((JSONObject)responsed.get(i)).getString("teacher_id"))==self_id){
+                                    groups_ids.add(Integer.parseInt(((JSONObject)responsed.get(i)).getString("group_id")));
+                                }
+                            } catch (JSONException e) {
+                                throw new RuntimeException(e);
+                            }
+                        }
+                        getGroups(groups_ids);
+
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        is_updating_data = false;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonArrayRequest);
+
+
+    }
+    public void getStudentsDataStarostaPhase1(){
+        jsonArrayRequest
+                = new JsonArrayRequest(
+                Request.Method.GET,
+                requestManager.url+"/student-groups/",
+                null,
+
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+                        try {
+                            find_group_id((JSONArray) response);
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+                        try {
+                            getStudentsDataStarostaPhase2((JSONArray) response);
+                        } catch (JSONException e) {
+                            throw new RuntimeException(e);
+                        }
+
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        is_updating_data = false;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonArrayRequest);
+
+    }
+    public void getStudentsDataStarostaPhase2(JSONArray response) throws JSONException {
+        JSONObject jsondata;
+        for (int i = 0; i<response.length(); i++){
+            jsondata = (JSONObject) response.get(i);
+            if (Integer.parseInt((jsondata).getString("group_id"))==group_id_starosta){
+                studentsData.add(new Object[]{
+                        Integer.parseInt((jsondata).getString("student_id")),
+                        group_id_starosta,
+                        Integer.parseInt((jsondata).getString("subgroup")),
+                        (jsondata).getString("device_address"),
+                        ""});
+            }
+
+
+        jsonArrayRequest
+                = new JsonArrayRequest(
+                Request.Method.GET,
+                requestManager.url+"/users/",
+                null,
+
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+                        logging_in_now = false;
+                        is_updating_data = false;
+                        JSONArray responsed = ((JSONArray) response);
+                        for (int i = 0; i<responsed.length(); i++){
+                            for (int j = 0; j<studentsData.size();j++){
+                                try {
+                                    if ((int)studentsData.get(j)[STUDENT_ID] == Integer.parseInt( ((JSONObject)responsed.get(i)).getString("id"))){
+                                        studentsData.get(j)[FIO] = ((JSONObject)responsed.get(i)).getString("name") + " " + ((JSONObject)responsed.get(i)).getString("surname") + " " + ((JSONObject)responsed.get(i)).getString("patronymic");
+
+                                    };
+                                } catch (JSONException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }
+                        }
+                        is_updating_data = false;
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        is_updating_data = false;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonArrayRequest);
+
+    }
+
+    }
+    private void find_group_id(JSONArray response) throws JSONException {
+        group_id_starosta = -1;
+        for (int i = 0; i<response.length(); i++){
+            if (Integer.parseInt(((JSONObject) response.get(i)).getString("student_id"))==self_id){
+                group_id_starosta = Integer.parseInt(((JSONObject) response.get(i)).getString("group_id"));
+                return;
+
+            }
+
+        }
+
+
+    }
+
 
 }
