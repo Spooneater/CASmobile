@@ -1,5 +1,7 @@
 package com.example.attendancechecker;
 
+import android.content.Context;
+
 import com.android.volley.AuthFailureError;
 import com.android.volley.Request;
 import com.android.volley.Response;
@@ -37,7 +39,7 @@ public class UserData {
     boolean changed;
     boolean logged_in;
     boolean is_wiring;
-
+    int cnt;
     int wiring_result;
     List<Object[]>  studentsData;
     boolean logging_in_now;
@@ -46,8 +48,9 @@ public class UserData {
     public JsonArrayRequest jsonArrayRequest;
     public boolean is_updating_data;
     public JsonObjectRequest jsonObjectRequest;
-    public int to_updated_users;
-    public UserData(String login, String password, RequestManager requestManager){
+    public final Context context;
+    public UserData(String login, String password, RequestManager requestManager,Context context){
+        this.context = context;
         changed = true;
         this.jsonObject = new  JSONObject();
         this.login = login;
@@ -120,7 +123,7 @@ public class UserData {
 
     }
     //s-староста. t-teacher, d-director
-    //TODO сделать запрос на авторизацию
+
     public boolean checkLogin(){
         this.role = "starosta";
         this.group_id_starosta = 2;
@@ -149,20 +152,36 @@ public class UserData {
                     @Override
                     public void onResponse(Object response) {
                         JSONArray responsed = ((JSONArray) response);
+                        cnt = 0;
                         for (int i = 0; i < responsed.length(); i++) {
                             try {
                                 JSONObject jsondata = (JSONObject) responsed.get(i);
                                 if (jsondata.getString("device_address").equals(address)) {
                                     wiring_result = 1;
                                     is_wiring =false;
+                                    return;
+                                }
+                                if (Integer.parseInt(jsondata.getString("student_id"))== student_id){
+                                    cnt+=1;
                                 }
 
                             } catch (JSONException e) {
+                                is_wiring = false;
                                 throw new RuntimeException(e);
                             }
-
                         }
-                        getStudentNames();
+                        for (int i = 0; i < responsed.length(); i++) {
+                            try {
+                                JSONObject jsondata = (JSONObject) responsed.get(i);
+                                if (Integer.parseInt(jsondata.getString("student_id"))== student_id){
+                                    confirmWiring(address, student_id, jsondata);
+                                }
+
+                            } catch (JSONException e) {
+                                is_wiring = false;
+                                throw new RuntimeException(e);
+                            }
+                        }
                     }
                 },
                 new Response.ErrorListener() {
@@ -175,7 +194,38 @@ public class UserData {
                 });
         requestManager.queue.add(jsonArrayRequest);
     }   //0-Все норм. 1-Адрес занят. 2-Проблемесы с интернетом
+public void confirmWiring(String address, int student_id,JSONObject body) throws JSONException {
+        body.put("device_address",address) ;
+        JsonObjectRequest jsonObjectRequest
+                = new JsonObjectRequest(
+                Request.Method.PATCH,
+                requestManager.url+"/api/gr_update/",
+                body,
 
+                new Response.Listener() {
+                    @Override
+                    public void onResponse(Object response) {
+                    synchronized (context){
+                        cnt--;
+                        if (cnt==0) is_wiring = false;
+                        wiring_result = 0;
+                    }
+
+                    }
+                },
+                new Response.ErrorListener() {
+                    @Override
+                    public void onErrorResponse(VolleyError error)
+                    {
+                        cnt--;
+                        if (cnt == 0) is_wiring = false;
+                        is_wiring = false;
+                        wiring_result = 3;
+                        error.getCause();
+                    }
+                });
+        requestManager.queue.add(jsonObjectRequest);
+    }
     //Получение данных о студентах
     //[0] - student_id[int]
     //[1] - group_id[int]
@@ -186,9 +236,9 @@ public class UserData {
     public void getStudentsData(){
         this.is_updating_data = true;
         this.studentsData = new ArrayList<Object[]>();
-        if (Objects.equals(role, "starosta")){
+        if (Objects.equals(role, "Староста")){
             getStudentsDataStarostaPhase1();
-        } else if (Objects.equals(role, "teacher")) {
+        } else if (Objects.equals(role, "Преподователь")) {
             getLessons();
         }
 

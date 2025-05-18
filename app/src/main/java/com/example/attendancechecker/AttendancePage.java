@@ -172,7 +172,7 @@ public class AttendancePage extends AppCompatActivity {
         TextView lessonName;
         TextView time_view;
         parseData();
-        if (userData.role.equals("starosta")){
+        if (userData.role.substring(0,1).equals("С")){
             setContentView(R.layout.activity_main_screen_startosta);
             checkAttendanceBtn = findViewById(R.id.check_attendance);
             tableLayout = findViewById(R.id.table_layout);
@@ -270,7 +270,7 @@ public class AttendancePage extends AppCompatActivity {
             public void run() {
                 try {
 
-                    sleep(5000);
+                    sleep(10000);
                     bluetoothReader.die();
                     Intent intent = new Intent();
                     intent.setAction(STOPWAITING);
@@ -286,7 +286,7 @@ public class AttendancePage extends AppCompatActivity {
 
     }
     private void changeButtonsClickability(int Color, boolean clickable){
-        if(Objects.equals(userData.role, "s")){
+        if(Objects.equals(userData.role, "С")){
             groupBtn.setBackgroundColor(Color);
             groupBtn.setEnabled(clickable);
 

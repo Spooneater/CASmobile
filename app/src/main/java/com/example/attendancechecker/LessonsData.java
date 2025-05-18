@@ -70,9 +70,9 @@ public class LessonsData {
         return  time.toString();
     }
     public int[] is_now(String Date,String time_start, String time_end){
-        int day = Integer.parseInt(Date.split("\\.")[0]);
-        int month = Integer.parseInt(Date.split("\\.")[1]);
-        int year = Integer.parseInt(Date.split("\\.")[2]);
+        int day = Integer.parseInt(Date.split("-")[2]);
+        int month = Integer.parseInt(Date.split("-")[1]);
+        int year = Integer.parseInt(Date.split("-")[0]);
         int start_hour = Integer.parseInt(time_start.split(":")[0]);
         int start_minute = Integer.parseInt(time_start.split(":")[1]);
         int end_hour = Integer.parseInt(time_end.split(":")[0]);
@@ -108,9 +108,9 @@ public class LessonsData {
                                         ((JSONObject)responsed.get(i)).getString("time_end"));
                                 if (arr[0] == -1)
                                     continue;
-                                if (((userData.role.equals("teacher"))&&(Integer.parseInt(((JSONObject)responsed.get(i)).getString("teacher_id"))==userData.self_id))
+                                if (((userData.role.equals("Преподаватель"))&&(Integer.parseInt(((JSONObject)responsed.get(i)).getString("teacher_id"))==userData.self_id))
                                         ||
-                                        ((userData.role.equals("starosta")) && (Integer.parseInt(((JSONObject)responsed.get(i)).getString("group_id"))==userData.group_id_starosta)))
+                                        ((userData.role.equals("Староста")) && (Integer.parseInt(((JSONObject)responsed.get(i)).getString("group_id"))==userData.group_id_starosta)))
                                 {
                                     lessonsData.add(new Object[]{
                                             Integer.parseInt(((JSONObject) responsed.get(i)).getString("id")),
@@ -122,14 +122,20 @@ public class LessonsData {
                                             Integer.parseInt(((JSONObject) responsed.get(i)).getString("discipline_id")),
                                     });
                                     lessons_ids.add(Integer.parseInt(((JSONObject) responsed.get(i)).getString("id")));
-                                    getLessonsNames();
+
                                 }
                             } catch (JSONException e) {
+                                is_updating_data = false;
                                 throw new RuntimeException(e);
                             }
 
                         }
-
+                        if (responsed.length() == 0){
+                            is_updating_data = false;
+                        }
+                        else{
+                            getLessonsNames();
+                        }
                     }
                 },
                 new Response.ErrorListener() {
@@ -163,7 +169,9 @@ public class LessonsData {
                                         break;
                                     }
                                 } catch (JSONException e) {
+                                    is_updating_data = false;
                                     throw new RuntimeException(e);
+
                                 }
                             }
                             if (flag) continue;

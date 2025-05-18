@@ -39,7 +39,7 @@ public class LoginPage extends AppCompatActivity {
         }
         String login = loginEditText.getText().toString();
         String password = passwordEditText.getText().toString();
-        userData = new UserData(login,password,requestManager);
+        userData = new UserData(login,password,requestManager,this);
         overlay.setVisibility(View.VISIBLE);
         userData.makeLoginRequest();
         new Thread(new Runnable() {
@@ -73,7 +73,7 @@ public class LoginPage extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_login);
-        requestManager = new RequestManager("http://192.168.1.42:5005",this);
+        requestManager = new RequestManager("http://192.168.117.37:5005",this);
 
         errorMessageLoginTextView = findViewById(R.id.error_message_login);
         loginButton = findViewById(R.id.login_button);
