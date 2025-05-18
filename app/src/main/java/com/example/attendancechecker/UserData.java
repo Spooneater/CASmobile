@@ -96,8 +96,8 @@ public class UserData {
                 new Response.Listener() {
                     @Override
                     public void onResponse(Object response) {
-                        logging_in_now = false;
-                        logged_in = false;
+
+                        logged_in = true;
                         try {
                             self_id = Integer.parseInt(((JSONObject) response).getString("id"));
                         } catch (JSONException e) {
@@ -105,10 +105,12 @@ public class UserData {
                         }
                         try {
                             role = ((JSONObject) response).getString("role");
-                            if ((role != "Староста")||(role!= "Преподователь")) logged_in = false;
+                            if ((!role.equals("Староста"))&&(!role.equals("Преподователь"))) logged_in = false;
                         } catch (JSONException e) {
+                            logging_in_now = false;
                             throw new RuntimeException(e);
                         }
+                        logging_in_now = false;
                     }
                 },
                 new Response.ErrorListener() {
